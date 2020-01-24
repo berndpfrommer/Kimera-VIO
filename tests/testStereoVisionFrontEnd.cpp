@@ -232,7 +232,7 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
 
   std::vector<Point2> convertCornersAcrossCameras(
       const std::vector<Point2>& corners_in,
-      const Cal3DS2& calib_in,
+      const DistortionModel& calib_in,
       const Cal3_S2& calib_out) {
     CHECK_DOUBLE_EQ(calib_in.skew(), 0.0);
     CHECK_DOUBLE_EQ(calib_out.skew(), 0.0);
@@ -530,7 +530,7 @@ TEST_F(StereoVisionFrontEndFixture, processFirstFrame) {
       loadCorners(synthetic_stereo_path + "/corners_undistort_left.txt");
   std::vector<Point2> left_rect_corners =
       convertCornersAcrossCameras(left_undistort_corners,
-                                  sf.getLeftFrame().cam_param_.calibration_,
+                                  *(sf.getLeftFrame().cam_param_.distortion_),
                                   sf.getLeftUndistRectCamMat());
   for (int i = 0; i < num_corners; i++) {
     int idx_gt = corner_id_map_frame2gt[i];
@@ -545,7 +545,7 @@ TEST_F(StereoVisionFrontEndFixture, processFirstFrame) {
       loadCorners(synthetic_stereo_path + "/corners_undistort_right.txt");
   std::vector<Point2> right_rect_corners =
       convertCornersAcrossCameras(right_undistort_corners,
-                                  sf.getRightFrame().cam_param_.calibration_,
+                                  *(sf.getRightFrame().cam_param_.distortion_),
                                   sf.getRightUndistRectCamMat());
   for (int i = 0; i < num_corners; i++) {
     int idx_gt = corner_id_map_frame2gt[i];

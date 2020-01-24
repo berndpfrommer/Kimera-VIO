@@ -14,10 +14,12 @@
 
 #include "kimera-vio/frontend/CameraParams.h"
 
-#include <iostream>
-#include <fstream>
-
 #include <gtsam/navigation/ImuBias.h>
+
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <vector>
 
 namespace VIO {
 
@@ -29,11 +31,9 @@ bool CameraParams::parseYAML(const std::string& filepath) {
   UtilsOpenCV::safeOpenCVFileStorage(&fs, filepath);
 
   // Distortion parameters.
-  std::vector<double> distortion_;
-  parseDistortion(fs, filepath,
-                  &distortion_model_,
-                  &distortion_);
-  convertDistortionVectorToMatrix(distortion_, &distortion_coeff_);
+  std::vector<double> distortion;
+  parseDistortion(fs, filepath, &distortion_model_, &distortion);
+  convertDistortionVectorToMatrix(distortion, &distortion_coeff_);
 
   // Camera resolution.
   parseImgSize(fs, &image_size_);
@@ -52,7 +52,8 @@ bool CameraParams::parseYAML(const std::string& filepath) {
 
   // Create gtsam calibration object.
   // Calibration of a camera with radial distortion that also supports
-  createGtsamCalibration(distortion_, intrinsics_, &calibration_);
+  createGtsamCalibration(
+      distortion_model_, distortion, intrinsics_, &distortion_);
 
   // P_ = R_rectify_ * camera_matrix_;
   fs.release();
@@ -64,7 +65,8 @@ bool CameraParams::parseYAML(const std::string& filepath) {
 // something, and re-use parseYAML.
 // Parse KITTI calibration txt file describing camera parameters.
 bool CameraParams::parseKITTICalib(const std::string& filepath,
-                                   cv::Mat R_cam_to_body, cv::Mat T_cam_to_body,
+                                   cv::Mat R_cam_to_body,
+                                   cv::Mat T_cam_to_body,
                                    const std::string& cam_id) {
   // rate is approx 10 hz as given by the README
   frame_rate_ = 1 / 10.0;
@@ -121,19 +123,20 @@ bool CameraParams::parseKITTICalib(const std::string& filepath,
           distortion_coeff_.at<double>(0, k) = distortion_coeff5_[k];
         }
 
-      }else if (label == "R_" + cam_id + ":") {
+      } else if (label == "R_" + cam_id + ":") {
         // this entry gives the rotation matrix
         double value;
-        for (int i = 0; i < 9; i++){
+        for (int i = 0; i < 9; i++) {
           ss >> value;
-          int row = i/3; int col = i%3;
+          int row = i / 3;
+          int col = i % 3;
           rotation.at<double>(row, col) = value;
         }
 
-      }else if (label == "T_" + cam_id + ":") {
+      } else if (label == "T_" + cam_id + ":") {
         // this entry gives the translation
         double value;
-        for (int i = 0; i < 3; i++){
+        for (int i = 0; i < 3; i++) {
           ss >> value;
           translation.at<double>(i, 0) = value;
         }
@@ -167,27 +170,17 @@ bool CameraParams::parseKITTICalib(const std::string& filepath,
   translation = T_cam_to_body - R_cam_to_body * translation;
 
   body_Pose_cam_ = UtilsOpenCV::Cvmats2pose(rotation, translation);
-
-  calibration_ = gtsam::Cal3DS2(intrinsics_[0],          // fx
-                                intrinsics_[1],          // fy
-                                0.0,                     // skew
-                                intrinsics_[2],          // u0
-                                intrinsics_[3],          // v0
-                                distortion_coeff5_[0],   //  k1
-                                distortion_coeff5_[1],   //  k2
-                                distortion_coeff5_[3],   //  p1
-                                distortion_coeff5_[4]);  //  p2
-  // NOTE check if ignorting the 3rd distortion coeff is correct
+  createGtsamCalibration(
+      distortion_model_, distortion_coeff5_, intrinsics_, &distortion_);
 
   return true;
 }
 
 /* -------------------------------------------------------------------------- */
-void CameraParams::parseDistortion(
-    const cv::FileStorage& fs,
-    const std::string& filepath,
-    std::string* distortion_model,
-    std::vector<double>* distortion_coeff) {
+void CameraParams::parseDistortion(const cv::FileStorage& fs,
+                                   const std::string& filepath,
+                                   std::string* distortion_model,
+                                   std::vector<double>* distortion_coeff) {
   CHECK_NOTNULL(distortion_model);
   CHECK_NOTNULL(distortion_coeff)->clear();
   // 4 parameters (read from file)
@@ -196,7 +189,8 @@ void CameraParams::parseDistortion(
         *distortion_model == "radial-tangential" ||
         *distortion_model == "equidistant")
       << "Unsupported distortion model. Expected: radtan or equidistant,"
-         "but got instead: " << distortion_model->c_str();
+         "but got instead: "
+      << distortion_model->c_str();
   fs["distortion_coefficients"] >> *distortion_coeff;
   CHECK_EQ(distortion_coeff->size(), 4);
 }
@@ -269,30 +263,22 @@ void CameraParams::convertIntrinsicsVectorToMatrix(
 
 /* -------------------------------------------------------------------------- */
 // TODO(Toni) : Check if equidistant distortion is supported as well in gtsam.
-void CameraParams::createGtsamCalibration(
-    const std::vector<double>& distortion,
-    const std::vector<double>& intrinsics,
-    gtsam::Cal3DS2* calibration) {
-  CHECK_NOTNULL(calibration);
+void CameraParams::createGtsamCalibration(const std::string& distortion_model,
+                                          const std::vector<double>& distortion,
+                                          const std::vector<double>& intrinsics,
+                                          DistortionModelConstPtr* dm) {
   CHECK_GE(intrinsics.size(), 4);
-  CHECK_GE(distortion.size(), 4);
-  *calibration = gtsam::Cal3DS2(
-      intrinsics[0],   // fx
-      intrinsics[1],   // fy
-      0.0,             // skew
-      intrinsics[2],   // u0
-      intrinsics[3],   // v0
-      distortion[0],   // k1
-      distortion[1],   // k2
-      distortion[2],   // p1 (k3)
-      distortion[3]);  // p2 (k4)
+  if (DistortionModel::is_valid(distortion_model, 4)) {
+    CHECK_GE(distortion.size(), 4);
+    *dm = DistortionModel::make(distortion_model, intrinsics, distortion);
+  }
 }
 
 /* -------------------------------------------------------------------------- */
 // Display all params.
 void CameraParams::print() const {
   std::string output;
-  for(size_t i = 0; i < intrinsics_.size(); i++) {
+  for (size_t i = 0; i < intrinsics_.size(); i++) {
     output += std::to_string(intrinsics_.at(i)) + " , ";
   }
   LOG(INFO) << "------------ CameraParams::print -------------\n"
@@ -300,8 +286,13 @@ void CameraParams::print() const {
 
   LOG(INFO) << "body_Pose_cam_: \n" << body_Pose_cam_ << std::endl;
 
-  if (FLAGS_minloglevel < 1)
-    calibration_.print("\n gtsam calibration:\n");
+  if (FLAGS_minloglevel < 1) {
+    if (distortion_) {
+      distortion_->print();
+    } else {
+      LOG(INFO) << "no distortion model present yet!" << std::endl;
+    }
+  }
 
   LOG(INFO) << "frame_rate_: " << frame_rate_ << '\n'
             << "image_size_: width= " << image_size_.width
@@ -321,7 +312,8 @@ void CameraParams::print() const {
 
 /* -------------------------------------------------------------------------- */
 // Assert equality up to a tolerance.
-bool CameraParams::equals(const CameraParams& cam_par, const double& tol) const {
+bool CameraParams::equals(const CameraParams& cam_par,
+                          const double& tol) const {
   bool areIntrinsicEqual = true;
   for (size_t i = 0; i < intrinsics_.size(); i++) {
     if (std::fabs(intrinsics_[i] - cam_par.intrinsics_[i]) > tol) {
@@ -329,12 +321,14 @@ bool CameraParams::equals(const CameraParams& cam_par, const double& tol) const 
       break;
     }
   }
-  return areIntrinsicEqual &&
+  bool distortionMatches = (distortion_ && cam_par.distortion_ &&
+                            distortion_->equals(cam_par.distortion_)) ||
+                           (!distortion_ && !cam_par.distortion_);
+  return areIntrinsicEqual && distortionMatches &&
          body_Pose_cam_.equals(cam_par.body_Pose_cam_, tol) &&
          (std::fabs(frame_rate_ - cam_par.frame_rate_) < tol) &&
          (image_size_.width == cam_par.image_size_.width) &&
          (image_size_.height == cam_par.image_size_.height) &&
-         calibration_.equals(cam_par.calibration_, tol) &&
          UtilsOpenCV::CvMatCmp(camera_matrix_, cam_par.camera_matrix_) &&
          UtilsOpenCV::CvMatCmp(distortion_coeff_, cam_par.distortion_coeff_) &&
          UtilsOpenCV::CvMatCmp(undistRect_map_x_, cam_par.undistRect_map_x_) &&

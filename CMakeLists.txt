@@ -90,11 +90,17 @@ include(src/imu-frontend/CMakeLists.txt)
 ### Add source code for visualizer.
 include(include/kimera-vio/visualizer/CMakeLists.txt)
 include(src/visualizer/CMakeLists.txt)
+### Add source code for camera distortion models
+include(include/kimera-vio/distortion_models/CMakeLists.txt)
+include(src/distortion_models/CMakeLists.txt)
+### Add source code for gtsam distortion extensions
+include(include/kimera-vio/gtsam_distortion/CMakeLists.txt)
+include(src/gtsam_distortion/CMakeLists.txt)
 
 target_link_libraries(KimeraVIO
   PRIVATE
     opengv
-    DBoW2
+    ${DBoW2_LIBRARIES}
     KimeraRPGO
   PUBLIC
     Boost::boost
@@ -161,6 +167,7 @@ include(CTest)
 add_executable(testKimeraVIO
   tests/testKimeraVIO.cpp
   tests/testCameraParams.cpp
+  tests/testDistortionModels.cpp
   tests/testCodesignIdeas.cpp
   tests/testFeatureSelector.cpp
   tests/testFrame.cpp

@@ -27,6 +27,9 @@
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+#include <algorithm>
+#include <limits>
+#include <vector>
 
 #include "kimera-vio/frontend/FeatureSelector.h"
 
@@ -114,8 +117,8 @@ TEST(FeatureSelector, createPrior1) {
   // Add prior on pose0
   SharedNoiseModel noise_init_pose = noiseModel::Diagonal::Sigmas(
       (Vector(6) << 0.01, 0.02, 0.03, 4, 5, 6).finished());
-  graph.push_back(boost::make_shared<PriorFactor<Pose3>>(Symbol('x', 0), pose0,
-                                                         noise_init_pose));
+  graph.push_back(boost::make_shared<PriorFactor<Pose3>>(
+      Symbol('x', 0), pose0, noise_init_pose));
 
   // Add initial velocity priors.
   SharedNoiseModel zeroVelocityPriorNoise =
@@ -132,17 +135,23 @@ TEST(FeatureSelector, createPrior1) {
   double smallSigma = 1e-3;
   // add between factors on poses
   graph.push_back(boost::make_shared<BetweenFactor<Pose3>>(
-      Symbol('x', 0), Symbol('x', 1), pose0.between(pose1),
+      Symbol('x', 0),
+      Symbol('x', 1),
+      pose0.between(pose1),
       noiseModel::Isotropic::Sigma(6, smallSigma)));  // very small noise
 
   // add between factors on vel
   graph.push_back(boost::make_shared<BetweenFactor<Vector3>>(
-      Symbol('v', 0), Symbol('v', 1), vel1 - vel0,
+      Symbol('v', 0),
+      Symbol('v', 1),
+      vel1 - vel0,
       noiseModel::Isotropic::Sigma(3, smallSigma)));  // very small noise
 
   // add between factors on biases
   graph.push_back(boost::make_shared<BetweenFactor<imuBias::ConstantBias>>(
-      Symbol('b', 0), Symbol('b', 1), bias0.between(bias1),
+      Symbol('b', 0),
+      Symbol('b', 1),
+      bias0.between(bias1),
       noiseModel::Isotropic::Sigma(6, smallSigma)));  // very small noise
 
   Values state;
@@ -514,7 +523,8 @@ TEST(FeatureSelector, createLinearVisionFactor_And_SchurComplement) {
 // helper function
 Matrix schurComplementTest(Point3 pworld_l,
                            vector<StampedPose> posesAtFutureKeyframes,
-                           Pose3 b_P_LCam, Pose3 b_P_RCam) {
+                           Pose3 b_P_LCam,
+                           Pose3 b_P_RCam) {
   // create graph Jacobian factors corresponding to projection measurements:
   GaussianFactorGraph gfg;
   Key l0 = 10;  // a key
@@ -602,8 +612,10 @@ TEST(FeatureSelector, createLinearVisionFactor_body_P_cam) {
                                                   // keys are in the right order
 
   Matrix expectedHessian =
-      schurComplementTest(pworld_l, featureSelectionData.posesAtFutureKeyframes,
-                          b_P_LCam, b_P_RCam);
+      schurComplementTest(pworld_l,
+                          featureSelectionData.posesAtFutureKeyframes,
+                          b_P_LCam,
+                          b_P_RCam);
 
   // check
   EXPECT_TRUE(assert_equal(expectedHessian, actualHessian));
@@ -667,9 +679,11 @@ TEST(FeatureSelector, evaluateGain_det) {
   GaussianFactorGraph::shared_ptr gfg = createOmegaBarTest();
 
   // some jacobian to facilitate creation of Hessian factor
-  JacobianFactor J =
-      JacobianFactor(0, 1 * Matrix::Identity(3, 9), 1,
-                     1 * Matrix::Identity(3, 9), Vector3::Zero());
+  JacobianFactor J = JacobianFactor(0,
+                                    1 * Matrix::Identity(3, 9),
+                                    1,
+                                    1 * Matrix::Identity(3, 9),
+                                    Vector3::Zero());
   HessianFactor::shared_ptr H = boost::make_shared<HessianFactor>(J);
 
   // test with actual hessian factor
@@ -686,22 +700,30 @@ TEST(FeatureSelector, evaluateGain_det) {
 
       // actual
       double actualDet = FeatureSelector::EvaluateGain(
-          gfg, H, VioFrontEndParams::FeatureSelectionCriterion::LOGDET,
+          gfg,
+          H,
+          VioFrontEndParams::FeatureSelectionCriterion::LOGDET,
           useDenseMatrices);
-      EXPECT_NEAR(expectedLogDet, actualDet,
+      EXPECT_NEAR(expectedLogDet,
+                  actualDet,
                   expectedLogDet * 1e-3);  // relative tolerance
       // compare against matlab determinant:
-      EXPECT_NEAR(log(5.591685310658876e+79), actualDet,
+      EXPECT_NEAR(log(5.591685310658876e+79),
+                  actualDet,
                   expectedLogDet * 1e-3);  // determinant should be large
 
       // actual2: call it again and make sure we did not mess up gfg inside the
       // function
       actualDet = FeatureSelector::EvaluateGain(
-          gfg, H, VioFrontEndParams::FeatureSelectionCriterion::LOGDET,
+          gfg,
+          H,
+          VioFrontEndParams::FeatureSelectionCriterion::LOGDET,
           useDenseMatrices);
-      EXPECT_NEAR(expectedLogDet, actualDet,
+      EXPECT_NEAR(expectedLogDet,
+                  actualDet,
                   expectedLogDet * 1e-3);  // relative tolerance
-      EXPECT_NEAR(log(5.591685310658876e+79), actualDet,
+      EXPECT_NEAR(log(5.591685310658876e+79),
+                  actualDet,
                   expectedLogDet * 1e-3);  // determinant should be large
     }
   }
@@ -717,10 +739,12 @@ TEST(FeatureSelector, evaluateGain_det) {
 
       // actual
       double actualDet = FeatureSelector::EvaluateGain(
-          gfg, boost::make_shared<HessianFactor>(),
+          gfg,
+          boost::make_shared<HessianFactor>(),
           VioFrontEndParams::FeatureSelectionCriterion::LOGDET,
           useDenseMatrices);
-      EXPECT_NEAR(expectedLogDet, actualDet,
+      EXPECT_NEAR(expectedLogDet,
+                  actualDet,
                   expectedLogDet * 1e-3);  // relative tolerance
     }
   }
@@ -754,11 +778,31 @@ TEST(FeatureSelector, upperBound) {
 
 /* ************************************************************************* */
 TEST(FeatureSelector, logget) {
-  Matrix M = (Matrix(5, 5) << 0.0874197, -0.0030860, 0.0116969, 0.0081463,
-              0.0048741, -0.0030860, 0.0872727, 0.0183073, 0.0125325,
-              -0.0037363, 0.0116969, 0.0183073, 0.0966217, 0.0103894,
-              -0.0021113, 0.0081463, 0.0125325, 0.0103894, 0.0747324, 0.0036415,
-              0.0048741, -0.0037363, -0.0021113, 0.0036415, 0.0909464)
+  Matrix M = (Matrix(5, 5) << 0.0874197,
+              -0.0030860,
+              0.0116969,
+              0.0081463,
+              0.0048741,
+              -0.0030860,
+              0.0872727,
+              0.0183073,
+              0.0125325,
+              -0.0037363,
+              0.0116969,
+              0.0183073,
+              0.0966217,
+              0.0103894,
+              -0.0021113,
+              0.0081463,
+              0.0125325,
+              0.0103894,
+              0.0747324,
+              0.0036415,
+              0.0048741,
+              -0.0037363,
+              -0.0021113,
+              0.0036415,
+              0.0909464)
                  .finished();
 
   double expected = log(M.determinant());
@@ -768,11 +812,31 @@ TEST(FeatureSelector, logget) {
 
 /* ************************************************************************* */
 TEST(FeatureSelector, smallestEig) {
-  Matrix M = (Matrix(5, 5) << 0.0874197, -0.0030860, 0.0116969, 0.0081463,
-              0.0048741, -0.0030860, 0.0872727, 0.0183073, 0.0125325,
-              -0.0037363, 0.0116969, 0.0183073, 0.0966217, 0.0103894,
-              -0.0021113, 0.0081463, 0.0125325, 0.0103894, 0.0747324, 0.0036415,
-              0.0048741, -0.0037363, -0.0021113, 0.0036415, 0.0909464)
+  Matrix M = (Matrix(5, 5) << 0.0874197,
+              -0.0030860,
+              0.0116969,
+              0.0081463,
+              0.0048741,
+              -0.0030860,
+              0.0872727,
+              0.0183073,
+              0.0125325,
+              -0.0037363,
+              0.0116969,
+              0.0183073,
+              0.0966217,
+              0.0103894,
+              -0.0021113,
+              0.0081463,
+              0.0125325,
+              0.0103894,
+              0.0747324,
+              0.0036415,
+              0.0048741,
+              -0.0037363,
+              -0.0021113,
+              0.0036415,
+              0.0909464)
                  .finished();
 
   double expectedEig, actualEig;
@@ -797,9 +861,11 @@ TEST(FeatureSelector, evaluateGain_minEig) {
   GaussianFactorGraph::shared_ptr gfg = createOmegaBarTest();
 
   // some jacobian to facilitate creation of Hessian factor
-  JacobianFactor J =
-      JacobianFactor(0, 1 * Matrix::Identity(3, 9), 1,
-                     1 * Matrix::Identity(3, 9), Vector3::Zero());
+  JacobianFactor J = JacobianFactor(0,
+                                    1 * Matrix::Identity(3, 9),
+                                    1,
+                                    1 * Matrix::Identity(3, 9),
+                                    Vector3::Zero());
   HessianFactor::shared_ptr H = boost::make_shared<HessianFactor>(J);
 
   // test with actual hessian factor
@@ -813,7 +879,8 @@ TEST(FeatureSelector, evaluateGain_minEig) {
     double expectedMinEig;
     Vector eigVector;
     boost::tie(rank, expectedMinEig, eigVector) = DLT(expectedHessian);
-    EXPECT_NEAR(2.990918403930777e+03, expectedMinEig,
+    EXPECT_NEAR(2.990918403930777e+03,
+                expectedMinEig,
                 expectedMinEig * 1e-4);  // relative tolerance
 
     bool useDenseMatrices = true;
@@ -822,17 +889,23 @@ TEST(FeatureSelector, evaluateGain_minEig) {
 
       // actual
       double actualMinEig = FeatureSelector::EvaluateGain(
-          gfg, H, VioFrontEndParams::FeatureSelectionCriterion::MIN_EIG,
+          gfg,
+          H,
+          VioFrontEndParams::FeatureSelectionCriterion::MIN_EIG,
           useDenseMatrices);
-      EXPECT_NEAR(expectedMinEig, actualMinEig,
+      EXPECT_NEAR(expectedMinEig,
+                  actualMinEig,
                   expectedMinEig * 1e-4);  // relative tolerance
 
       // actual2: call it again and make sure we did not mess up gfg inside the
       // function
       actualMinEig = FeatureSelector::EvaluateGain(
-          gfg, H, VioFrontEndParams::FeatureSelectionCriterion::MIN_EIG,
+          gfg,
+          H,
+          VioFrontEndParams::FeatureSelectionCriterion::MIN_EIG,
           useDenseMatrices);
-      EXPECT_NEAR(expectedMinEig, actualMinEig,
+      EXPECT_NEAR(expectedMinEig,
+                  actualMinEig,
                   expectedMinEig * 1e-4);  // relative tolerance
     }
   }
@@ -850,10 +923,12 @@ TEST(FeatureSelector, evaluateGain_minEig) {
 
       // actual
       double actualMinEig = FeatureSelector::EvaluateGain(
-          gfg, boost::make_shared<HessianFactor>(),
+          gfg,
+          boost::make_shared<HessianFactor>(),
           VioFrontEndParams::FeatureSelectionCriterion::MIN_EIG,
           useDenseMatrices);
-      EXPECT_NEAR(expectedMinEig, actualMinEig,
+      EXPECT_NEAR(expectedMinEig,
+                  actualMinEig,
                   expectedMinEig * 1e-4);  // relative tolerance
     }
   }
@@ -888,9 +963,15 @@ TEST(FeatureSelector, greedyAlgorithm) {
       default:
         c = double(i);
     }
-    Deltas.push_back(boost::make_shared<HessianFactor>(HessianFactor(
-        0, 1, c * Matrix::Identity(9, 9), Matrix::Zero(9, 9), Vector::Zero(9),
-        c * Matrix::Identity(9, 9), Vector::Zero(9), 0.0)));
+    Deltas.push_back(boost::make_shared<HessianFactor>(
+        HessianFactor(0,
+                      1,
+                      c * Matrix::Identity(9, 9),
+                      Matrix::Zero(9, 9),
+                      Vector::Zero(9),
+                      c * Matrix::Identity(9, 9),
+                      Vector::Zero(9),
+                      0.0)));
   }
 
   // we want to select the 5 best
@@ -900,7 +981,9 @@ TEST(FeatureSelector, greedyAlgorithm) {
   vector<size_t> actualEig;
   vector<double> actualGainEig;
   tie(actualEig, actualGainEig) = FeatureSelector::GreedyAlgorithm(
-      OmegaBar, Deltas, need_n_corners,
+      OmegaBar,
+      Deltas,
+      need_n_corners,
       VioFrontEndParams::FeatureSelectionCriterion::MIN_EIG);
   // check
   sort(actualEig.begin(), actualEig.end());  // to facilitate comparison
@@ -915,7 +998,9 @@ TEST(FeatureSelector, greedyAlgorithm) {
   vector<size_t> actualDet;
   vector<double> actualGainDet;
   tie(actualDet, actualGainDet) = FeatureSelector::GreedyAlgorithm(
-      OmegaBar, Deltas, need_n_corners,
+      OmegaBar,
+      Deltas,
+      need_n_corners,
       VioFrontEndParams::FeatureSelectionCriterion::LOGDET);
   // check
   sort(actualDet.begin(), actualDet.end());  // to facilitate comparison
@@ -973,8 +1058,11 @@ TEST(FeatureSelector, createDeltas) {
     cornerDistances.push_back(0.0);
 
   vector<HessianFactor::shared_ptr> Deltas =
-      f.createDeltas(availableVersors, cornerDistances, featureSelectionData,
-                     left_cameras, right_cameras);
+      f.createDeltas(availableVersors,
+                     cornerDistances,
+                     featureSelectionData,
+                     left_cameras,
+                     right_cameras);
 
   EXPECT_EQ(Deltas.size(), 2);  // 2 factors, 1 for each point
 
@@ -986,7 +1074,8 @@ TEST(FeatureSelector, createDeltas) {
   Point3 p1depth_check =
       left_cameras.at(0).pose() *
       Point3(availableVersors[0] * 2.0 / availableVersors[0](2));
-  EXPECT_TRUE(assert_equal(p1depth, p1depth_check,
+  EXPECT_TRUE(assert_equal(p1depth,
+                           p1depth_check,
                            1e-2));  // strangely we need some tolerance here
 
   // however we assume norm, rather than depth:
@@ -1051,9 +1140,8 @@ TEST(FeatureSelector, featureSelection) {
 
   // create camera params
   CameraParams cam_param;
-  cam_param.calibration_ =
-      Cal3DS2(Kreal.fx(), Kreal.fy(), 0.0, Kreal.px(), Kreal.py(), 0.0,
-              0.0);  // 0 skew and no distortion
+  cam_param.distortion_ = DistortionModel::make_pinhole(
+      Kreal.fx(), Kreal.fy(), Kreal.px(), Kreal.py());
   cam_param.camera_matrix_ = Mat::eye(3, 3, CV_64F);
   cam_param.camera_matrix_.at<double>(0, 0) = Kreal.fx();
   cam_param.camera_matrix_.at<double>(1, 1) = Kreal.fy();
@@ -1107,8 +1195,12 @@ TEST(FeatureSelector, featureSelection) {
     }
     tie(selected, selectedIndices, selectedGains) =
         f.featureSelectionLinearModel(
-            availableCorners, successProbability, cornerDistances, cam_param,
-            need_n_corners, featureSelectionData,
+            availableCorners,
+            successProbability,
+            cornerDistances,
+            cam_param,
+            need_n_corners,
+            featureSelectionData,
             VioFrontEndParams::FeatureSelectionCriterion::MIN_EIG);
     EXPECT_NEAR(1, selectedIndices[0], 1e-3);
     EXPECT_EQ(selectedIndices.size(), 1);
@@ -1117,8 +1209,12 @@ TEST(FeatureSelector, featureSelection) {
     // check det
     tie(selected, selectedIndices, selectedGains) =
         f.featureSelectionLinearModel(
-            availableCorners, successProbability, cornerDistances, cam_param,
-            need_n_corners, featureSelectionData,
+            availableCorners,
+            successProbability,
+            cornerDistances,
+            cam_param,
+            need_n_corners,
+            featureSelectionData,
             VioFrontEndParams::FeatureSelectionCriterion::LOGDET);
     EXPECT_NEAR(1, selectedIndices[0], 1e-3);
     EXPECT_EQ(selectedIndices.size(), 1);
@@ -1156,14 +1252,56 @@ TEST(FeatureSelector, sorting) {
 
 /* ************************************************************************* */
 TEST(FeatureSelector, MultiplyHessianInPlace) {
-  Matrix M =
-      (Matrix(7, 7) << 125.0000, 0.0, -25.0000, 0.0, -100.0000, 0.0, 25.0000,
-       0.0, 125.0000, 0.0, -25.0000, 0.0, -100.0000, -17.5000, -25.0000, 0.0,
-       25.0000, 0.0, 0.0, 0.0, -5.0000, 0.0, -25.0000, 0.0, 25.0000, 0.0, 0.0,
-       7.5000, -100.0000, 0.0, 0.0, 0.0, 100.0000, 0.0, -20.0000, 0.0,
-       -100.0000, 0.0, 0.0, 0.0, 100.0000, 10.0000, 25.0000, -17.5000, -5.0000,
-       7.5000, -20.0000, 10.0000, 8.2500)
-          .finished();
+  Matrix M = (Matrix(7, 7) << 125.0000,
+              0.0,
+              -25.0000,
+              0.0,
+              -100.0000,
+              0.0,
+              25.0000,
+              0.0,
+              125.0000,
+              0.0,
+              -25.0000,
+              0.0,
+              -100.0000,
+              -17.5000,
+              -25.0000,
+              0.0,
+              25.0000,
+              0.0,
+              0.0,
+              0.0,
+              -5.0000,
+              0.0,
+              -25.0000,
+              0.0,
+              25.0000,
+              0.0,
+              0.0,
+              7.5000,
+              -100.0000,
+              0.0,
+              0.0,
+              0.0,
+              100.0000,
+              0.0,
+              -20.0000,
+              0.0,
+              -100.0000,
+              0.0,
+              0.0,
+              0.0,
+              100.0000,
+              10.0000,
+              25.0000,
+              -17.5000,
+              -5.0000,
+              7.5000,
+              -20.0000,
+              10.0000,
+              8.2500)
+                 .finished();
 
   FastVector<Key> keys;
   keys.push_back(0);
@@ -1207,11 +1345,31 @@ TEST(FeatureSelector, MultiplyHessianInPlace) {
 
 /* ************************************************************************* */
 TEST(FeatureSelector, smallestEigSpectra) {
-  Matrix M = (Matrix(5, 5) << 0.0874197, -0.0030860, 0.0116969, 0.0081463,
-              0.0048741, -0.0030860, 0.0872727, 0.0183073, 0.0125325,
-              -0.0037363, 0.0116969, 0.0183073, 0.0966217, 0.0103894,
-              -0.0021113, 0.0081463, 0.0125325, 0.0103894, 0.0747324, 0.0036415,
-              0.0048741, -0.0037363, -0.0021113, 0.0036415, 0.0909464)
+  Matrix M = (Matrix(5, 5) << 0.0874197,
+              -0.0030860,
+              0.0116969,
+              0.0081463,
+              0.0048741,
+              -0.0030860,
+              0.0872727,
+              0.0183073,
+              0.0125325,
+              -0.0037363,
+              0.0116969,
+              0.0183073,
+              0.0966217,
+              0.0103894,
+              -0.0021113,
+              0.0081463,
+              0.0125325,
+              0.0103894,
+              0.0747324,
+              0.0036415,
+              0.0048741,
+              -0.0037363,
+              -0.0021113,
+              0.0036415,
+              0.0909464)
                  .finished();
 
   double expectedEig;
@@ -1226,18 +1384,39 @@ TEST(FeatureSelector, smallestEigSpectra) {
   boost::tie(actualRank, actualEig, actualVect) =
       FeatureSelector::SmallestEigsSpectra(M);
 
-  EXPECT_NEAR(expectedEig, actualEig,
+  EXPECT_NEAR(expectedEig,
+              actualEig,
               fabs(expectedEig) * 1e-3);  // relative tolerance
   EXPECT_TRUE(assert_equal(expectedVect, actualVect, 1e-2));
 }
 
 /* ************************************************************************* */
 TEST(FeatureSelector, smallestEigSpectraShift) {
-  Matrix M = (Matrix(5, 5) << 0.0874197, -0.0030860, 0.0116969, 0.0081463,
-              0.0048741, -0.0030860, 0.0872727, 0.0183073, 0.0125325,
-              -0.0037363, 0.0116969, 0.0183073, 0.0966217, 0.0103894,
-              -0.0021113, 0.0081463, 0.0125325, 0.0103894, 0.0747324, 0.0036415,
-              0.0048741, -0.0037363, -0.0021113, 0.0036415, 0.0909464)
+  Matrix M = (Matrix(5, 5) << 0.0874197,
+              -0.0030860,
+              0.0116969,
+              0.0081463,
+              0.0048741,
+              -0.0030860,
+              0.0872727,
+              0.0183073,
+              0.0125325,
+              -0.0037363,
+              0.0116969,
+              0.0183073,
+              0.0966217,
+              0.0103894,
+              -0.0021113,
+              0.0081463,
+              0.0125325,
+              0.0103894,
+              0.0747324,
+              0.0036415,
+              0.0048741,
+              -0.0037363,
+              -0.0021113,
+              0.0036415,
+              0.0909464)
                  .finished();
 
   double expectedEig;
@@ -1252,7 +1431,8 @@ TEST(FeatureSelector, smallestEigSpectraShift) {
   boost::tie(actualRank, actualEig, actualVect) =
       FeatureSelector::SmallestEigsSpectraShift(M);
 
-  EXPECT_NEAR(expectedEig, actualEig,
+  EXPECT_NEAR(expectedEig,
+              actualEig,
               fabs(expectedEig) * 1e-3);  // relative tolerance
   EXPECT_TRUE(assert_equal(expectedVect, actualVect, 1e-2));
 }

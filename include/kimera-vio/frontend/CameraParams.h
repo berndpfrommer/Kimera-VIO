@@ -12,22 +12,19 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
-#pragma once
+#ifndef INCLUDE_KIMERA_VIO_FRONTEND_CAMERAPARAMS_H_
+#define INCLUDE_KIMERA_VIO_FRONTEND_CAMERAPARAMS_H_
+
+#include "kimera-vio/distortion_models/DistortionModel.h"
+#include "kimera-vio/utils/UtilsOpenCV.h"
+
+#include <opencv2/core/core.hpp>
+#include <gtsam/geometry/Pose3.h>
 
 #include <string>
 #include <vector>
 
-#include <opencv2/core/core.hpp>
-
-#include <gtsam/geometry/Cal3DS2.h>
-#include <gtsam/geometry/Pose3.h>
-
-#include "kimera-vio/utils/UtilsOpenCV.h"
-
 namespace VIO {
-
-// TODO(Toni): leaving this here is a bit ugly...
-using Calibration = gtsam::Cal3DS2;
 
 /*
  * Class describing camera parameters.
@@ -56,9 +53,10 @@ class CameraParams {
   static void convertIntrinsicsVectorToMatrix(
       const std::vector<double>& intrinsics,
       cv::Mat* camera_matrix);
-  static void createGtsamCalibration(const std::vector<double>& distortion,
+  static void createGtsamCalibration(const std::string& distortion_model,
+                                     const std::vector<double>& distortion,
                                      const std::vector<double>& intrinsics,
-                                     gtsam::Cal3DS2* calibration);
+                                     DistortionModelConstPtr* dm);
 
   /* ------------------------------------------------------------------------ */
   // Parse KITTI calib file describing camera parameters.
@@ -74,6 +72,8 @@ class CameraParams {
   /* ------------------------------------------------------------------------ */
   // Assert equality up to a tolerance.
   bool equals(const CameraParams& cam_par, const double& tol = 1e-9) const;
+  // Assert calibration equality up to a tolerance
+  bool calibrationEquals(const CameraParams& cam_par, const double& tol) const;
 
  public:
   // fu, fv, cu, cv
@@ -86,15 +86,18 @@ class CameraParams {
   double frame_rate_;
   cv::Size image_size_;
 
-  // GTSAM structures to calibrate points.
-  Calibration calibration_;
-
   // OpenCV structures: For radial distortion and rectification.
   // needed to compute the undistorsion map.
   cv::Mat camera_matrix_;
-  // 5 parameters (last is zero): distortion_model: radial-tangential.
-  std::string distortion_model_;  // define default
+
+  // clear-text string describing the distortion model
+  std::string distortion_model_;
+
+  // distortion coefficients for either radtan or equidistant
   cv::Mat distortion_coeff_;
+
+  // pointer to actual gtsam model that can do uncalibration etc
+  DistortionModelConstPtr distortion_;
 
   cv::Mat undistRect_map_x_;
   cv::Mat undistRect_map_y_;
@@ -107,3 +110,4 @@ class CameraParams {
 };
 
 }  // namespace VIO
+#endif  // INCLUDE_KIMERA_VIO_FRONTEND_CAMERAPARAMS_H_
