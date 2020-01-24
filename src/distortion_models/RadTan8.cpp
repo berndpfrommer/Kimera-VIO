@@ -16,7 +16,7 @@
 #include <vector>
 
 namespace VIO {
-RadTan8::RadTan8(const std::vector<double>& intrinsics,
+RadTan8::RadTan8(const Intrinsics& intrinsics,
                  const std::vector<double>& distortion) {
   // assume distortion parameters are specified as
   // k1, k2, p1, p2, k3, k4, k5, k6

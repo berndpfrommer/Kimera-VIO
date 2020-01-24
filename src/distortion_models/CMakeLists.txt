@@ -1,5 +1,5 @@
 ### Add source code for distortion models
-target_sources(KimeraVIO
+target_sources(kimera_vio
   PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/DistortionModel.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/RadTan4.cpp"

@@ -17,7 +17,7 @@
 #include <vector>
 
 namespace VIO {
-RadTan4::RadTan4(const std::vector<double>& intrinsics,
+RadTan4::RadTan4(const Intrinsics& intrinsics,
                  const std::vector<double>& distortion) {
   model_ = gtsam::Cal3DS2(intrinsics[0],   // fx
                           intrinsics[1],   // fy

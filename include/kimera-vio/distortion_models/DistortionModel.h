@@ -19,6 +19,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <array>
 
 namespace VIO {
 /*
@@ -27,7 +28,7 @@ namespace VIO {
 class DistortionModel {
  public:
   virtual ~DistortionModel() {}
-
+  typedef std::array<double, 4> Intrinsics;
   // ----- methods to be implemented by the derived classes ----
 
   virtual gtsam::Point2 uncalibrate(const gtsam::Point2& p) const = 0;
@@ -53,7 +54,7 @@ class DistortionModel {
   // factory method for distortion models
   static std::shared_ptr<DistortionModel> make(
       const std::string& name,
-      const std::vector<double>& intrinsics,  // kx, ky, cu, cv
+      const Intrinsics& intrinsics,  // kx, ky, cu, cv
       const std::vector<double>& dist_coeffs);
 
   // factory method for pinhole camera without distortion

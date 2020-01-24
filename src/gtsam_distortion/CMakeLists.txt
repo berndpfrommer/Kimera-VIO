@@ -1,5 +1,5 @@
 ### Add source code for stereoVIO
-target_sources(KimeraVIO
+target_sources(kimera_vio
   PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/Cal3DS3.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/Cal3FS2.cpp"

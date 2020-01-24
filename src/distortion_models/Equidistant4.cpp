@@ -17,8 +17,8 @@
 #include <vector>
 
 namespace VIO {
-Equidistant4::Equidistant4(const std::vector<double>& intrinsics,
-                           const std::vector<double>& distortion) {
+  Equidistant4::Equidistant4(const Intrinsics& intrinsics,
+                             const std::vector<double>& distortion) {
   model_ = Cal3FS2(intrinsics[0],   // fx
                    intrinsics[1],   // fy
                    intrinsics[2],   // u0 (px)

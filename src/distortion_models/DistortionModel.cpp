@@ -52,14 +52,14 @@ DistortionModelPtr DistortionModel::make_pinhole(double fx,
                                                  double cu,
                                                  double cv) {
   std::vector<double> dist_coeffs = {0.0, 0.0, 0.0, 0.0};
-  std::vector<double> intrinsics = {fx, fy, cu, cv};
+  Intrinsics intrinsics = {fx, fy, cu, cv};
   return (std::shared_ptr<RadTan4>(new RadTan4(intrinsics, dist_coeffs)));
 }
 
 // factory method for creating distortion models
 DistortionModelPtr DistortionModel::make(
-    const std::string& name,                // radtan, equidistant etc...
-    const std::vector<double>& intrinsics,  // kx, ky, cu, cv
+    const std::string& name, // radtan, equidistant etc...
+    const Intrinsics &intrinsics,  // kx, ky, cu, cv
     const std::vector<double>& dist_coeffs) {
   if (name == "radtan" || name == "radial-tangential" || name == "plumb-bob" ||
       name == "plumb_bob") {

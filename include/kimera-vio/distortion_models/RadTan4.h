@@ -23,7 +23,7 @@
 namespace VIO {
 class RadTan4 : public DistortionModel {
  public:
-  RadTan4(const std::vector<double>& intrinsics,
+  RadTan4(const Intrinsics& intrinsics,
           const std::vector<double>& dist_coeffs);
   // method inherited from DistortionModel base class
   gtsam::Point2 uncalibrate(const gtsam::Point2& p) const override;

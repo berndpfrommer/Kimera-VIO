@@ -19,11 +19,12 @@
 
 #include <memory>
 #include <vector>
+#include <array>
 
 namespace VIO {
 class Equidistant4 : public DistortionModel {
  public:
-  Equidistant4(const std::vector<double>& intrinsics,
+  Equidistant4(const Intrinsics& intrinsics,
                const std::vector<double>& dist_coeffs);
   // method inherited from DistortionModel base class
   gtsam::Point2 uncalibrate(const gtsam::Point2& p) const override;
